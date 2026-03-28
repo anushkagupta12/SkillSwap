@@ -20,7 +20,7 @@ export function AuthProvider({ children }) {
   const loadUser = useCallback(async () => {
     if (!token) { setLoading(false); return }
     try {
-      const { data } = await api.get('/auth/me')
+      const { data } = await api.get('/api/auth/me')
       setUser(data.user)
     } catch {
       localStorage.removeItem('ss_token')
@@ -31,14 +31,14 @@ export function AuthProvider({ children }) {
   useEffect(() => { loadUser() }, [loadUser])
 
   const login = async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password })
+    const { data } = await api.post('/api/auth/login', { email, password })
     localStorage.setItem('ss_token', data.token)
     setToken(data.token); setUser(data.user)
     return data
   }
 
   const register = async (form) => {
-    const { data } = await api.post('/auth/register', form)
+    const { data } = await api.post('/api/auth/register', form)
     localStorage.setItem('ss_token', data.token)
     setToken(data.token); setUser(data.user)
     return data
@@ -50,7 +50,7 @@ export function AuthProvider({ children }) {
   }
 
   const updateProfile = async (profileData) => {
-    const { data } = await api.put('/auth/profile', profileData)
+    const { data } = await api.put('/api/auth/profile', profileData)
     setUser(data.user); return data
   }
 
