@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import axios from 'axios'
 
 const AuthContext = createContext(null)
-
+const API = import.meta.env.VITE_API_URL;
 export const api = axios.create({ baseURL: '/api' })
 api.interceptors.request.use(cfg => {
   const t = localStorage.getItem('ss_token')
