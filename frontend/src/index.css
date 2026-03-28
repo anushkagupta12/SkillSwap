@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background-color: #f6f4ef;
+    color: #0d1117;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: 'DM Serif Display', serif; letter-spacing: -0.02em; }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #e2ddd5; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #b0a898; }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium
+           transition-all duration-200 cursor-pointer border-0 font-sans whitespace-nowrap;
+  }
+  .btn:disabled { @apply opacity-50 cursor-not-allowed; }
+  .btn-primary { @apply bg-sage-light text-white hover:bg-sage active:scale-95; }
+  .btn-dark { @apply bg-ink text-canvas hover:bg-ink-2 active:scale-95; }
+  .btn-outline { @apply bg-transparent text-ink-3 border border-canvas-3 hover:border-ink-3 hover:text-ink; }
+  .btn-ghost { @apply bg-white/10 text-white/70 border border-white/15 hover:bg-white/15 hover:text-white; }
+  .btn-sm { @apply px-3.5 py-1.5 text-xs; }
+  .btn-lg { @apply px-7 py-3.5 text-base; }
+
+  .card {
+    @apply bg-white rounded-2xl border border-canvas-3 shadow-card
+           transition-all duration-300;
+  }
+  .card-hover { @apply hover:shadow-lift hover:-translate-y-0.5; }
+
+  .input {
+    @apply w-full px-4 py-2.5 border border-canvas-3 rounded-xl text-sm font-sans
+           bg-white text-ink placeholder-ink-4 outline-none
+           transition-all duration-200
+           focus:border-sage-light focus:ring-2 focus:ring-sage-light/20;
+  }
+  .input-dark {
+    @apply bg-white/10 border-white/10 text-white placeholder-white/30
+           focus:border-sage-light/70 focus:ring-sage-light/15;
+  }
+
+  .tag-teach { @apply text-xs font-medium px-2.5 py-1 rounded-full bg-sage-pale text-sage-dark; }
+  .tag-learn { @apply text-xs font-medium px-2.5 py-1 rounded-full bg-amber-pale text-amber; }
+  .tag-match { @apply text-xs font-medium px-2.5 py-1 rounded-full bg-violet-pale text-violet; }
+
+  .section-label { @apply text-[11px] font-bold text-ink-4 uppercase tracking-widest; }
+
+  .avatar-emerald { @apply bg-sage-pale text-sage-dark; }
+  .avatar-violet  { @apply bg-violet-pale text-violet; }
+  .avatar-amber   { @apply bg-amber-pale text-amber; }
+  .avatar-rose    { @apply bg-rose-pale text-rose; }
+  .avatar-sky     { @apply bg-sky-pale text-sky; }
+  .avatar-orange  { @apply bg-orange-100 text-orange-700; }
+}
+
+@layer utilities {
+  .font-display { font-family: 'DM Serif Display', serif; }
+  .animate-delay-200 { animation-delay: 200ms; }
+  .animate-delay-400 { animation-delay: 400ms; }
+  .animate-delay-600 { animation-delay: 600ms; }
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
