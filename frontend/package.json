@@ -10,7 +10,7 @@
   "postinstall": "chmod +x node_modules/.bin/vite"
 },
 "engines": {
-  "node": "18.x"
+  "node": "24.x"
 },
   "dependencies": {
     "react": "^18.2.0",
