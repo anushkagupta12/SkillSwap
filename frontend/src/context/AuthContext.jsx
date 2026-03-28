@@ -3,7 +3,9 @@ import axios from 'axios'
 
 const AuthContext = createContext(null)
 const API = import.meta.env.VITE_API_URL;
-export const api = axios.create({ baseURL: '/api' })
+export const api = axios.create({
+  baseURL: API
+})
 api.interceptors.request.use(cfg => {
   const t = localStorage.getItem('ss_token')
   if (t) cfg.headers.Authorization = `Bearer ${t}`
