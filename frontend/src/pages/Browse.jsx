@@ -25,7 +25,7 @@ export default function Browse() {
       const p = { page, limit: 12 }
       if (search)                     p.search   = search
       if (category && category !== 'All') p.category = category
-      const { data } = await api.get('/users', { params: p })
+      const { data } = await api.get('/api/users', { params: p })
       setUsers(data.users); setTotal(data.total); setPages(data.pages)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }

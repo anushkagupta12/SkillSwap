@@ -31,7 +31,7 @@ export default function UserProfile() {
     if (swapSent || swapping) return
     setSwapping(true)
     try {
-      await api.post(`/users/${id}/swap-request`, {
+      await api.post(`/api/users/${id}/swap-request`, {
         message: `Hi ${profile.name?.split(' ')[0]}! I'd love to swap skills with you.`,
       })
       setSwapSent(true)

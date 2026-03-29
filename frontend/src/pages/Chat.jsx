@@ -37,7 +37,7 @@ export default function Chat() {
 
   // Load conversations
   useEffect(() => {
-    api.get('/chat/conversations')
+    api.get('/api/chat/conversations')
       .then(({ data }) => {
         setConvos(data.conversations)
         if (conversationId) {

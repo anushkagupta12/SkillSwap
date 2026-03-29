@@ -25,7 +25,7 @@ function NotifRow({ req, onRespond }) {
     e.stopPropagation()
     setLoading(status)
     try {
-      await api.put(`/users/requests/${req._id}`, { status })
+      await api.put(`/api/users/requests/${req._id}`, { status })
       socket?.emit('swap:request:respond', { targetUserId: req.from._id, status })
       success(status === 'accepted'
         ? `Connected with ${req.from.name?.split(' ')[0]}! 🎉`
@@ -225,7 +225,7 @@ export default function Navbar() {
   const loadRequests = useCallback(async () => {
   setLoadingReqs(true)
   try {
-    const { data } = await api.get('/users/requests/inbox')
+    const { data } = await api.get('/api/users/requests/inbox')
     setRequests(data.requests || [])
     setHasLoaded(true)
   } catch (e) {

@@ -13,7 +13,7 @@ export default function Matches() {
   const [loading, setLoading]   = useState(true)
 
   useEffect(() => {
-    api.get('/users/matches')
+    api.get('/api/users/matches')
       .then(({ data }) => setMatches(data.matches))
       .catch(console.error)
       .finally(() => setLoading(false))
