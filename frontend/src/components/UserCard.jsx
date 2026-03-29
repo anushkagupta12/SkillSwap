@@ -135,7 +135,7 @@ export default function UserCard({ user, onSwapSent }) {
 
     setLoading(true)
     try {
-      await api.post(`/users/${user._id}/swap-request`, {
+      await api.post(`/api/users/${user._id}/swap-request`, {
         message: "Hi! I'd love to swap skills with you."
       })
       setSent(true)

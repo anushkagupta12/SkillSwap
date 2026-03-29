@@ -21,7 +21,7 @@ export default function UserProfile() {
   const [chatting,  setChatting]  = useState(false)
 
   useEffect(() => {
-    api.get(`/users/${id}`)
+    api.get(`/api/users/${id}`)
       .then(({ data }) => setProfile(data.user))
       .catch(console.error)
       .finally(() => setLoading(false))
@@ -50,7 +50,7 @@ export default function UserProfile() {
   const startChat = async () => {
     setChatting(true)
     try {
-      const { data } = await api.post('/chat/conversations', {
+      const { data } = await api.post('/api/chat/conversations', {
         recipientId: id,
         teachSkill: profile.skillsToTeach?.[0]?.name,
         learnSkill: profile.skillsToLearn?.[0]?.name,
