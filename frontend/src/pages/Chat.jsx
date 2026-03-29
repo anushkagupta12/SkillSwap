@@ -56,7 +56,7 @@ export default function Chat() {
     navigate(`/chat/${convo._id}`, { replace: true })
     joinRoom(convo._id)
     try {
-      const { data } = await api.get(`/chat/conversations/${convo._id}/messages`)
+      const { data } = await api.get(`/api/chat/conversations/${convo._id}/messages`)
       setMessages(data.messages)
     } catch (e) { console.error(e) }
     finally { setLoadMsgs(false) }
