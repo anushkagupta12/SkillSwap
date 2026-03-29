@@ -15,7 +15,7 @@ const app = express();
 const server = http.createServer(app);
 const allowedOrigins = [
   "http://localhost:5173",
-  process.env.CLIENT_URL
+  "https://skill-swap-eight-beta.vercel.app"
 ];
 const io = new Server(server, {
   cors: {
