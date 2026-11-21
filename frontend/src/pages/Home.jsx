@@ -1,232 +1,201 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import useStats from '../lib/useStats'
+import { CATEGORY_CARDS, DEMO_A, DEMO_B } from '../data/demo'
+import { scoreMatch } from '../lib/match'
 import ChatUI from '../components/ChatUI'
 import Community from '../components/Community'
 import SmartMatching from '../components/SmartMatching'
-import Feedback from '../components/Feedback'
+import ExampleBadge from '../components/ExampleBadge'
 import Footer from '../components/Footer'
-const CARDS = [
-  { initials: 'KP', color: 'emerald', name: 'Kavya Patel', role: 'UX Designer · Mumbai', teaches: ['Figma', 'UI Design'], learns: ['Python'], match: 93, rotate: '-rotate-3', anim: 'animate-float-slow', top: 'top-0', left: 'left-0' },
-  { initials: 'AR', color: 'violet',  name: 'Arjun Rao',   role: 'Backend Dev · Bangalore', teaches: ['Python', 'Django'], learns: ['Figma'], rotate: 'rotate-2', anim: 'animate-float-mid', top: 'top-36', left: 'left-24', zIndex: 'z-10' },
-  { initials: 'SM', color: 'amber',   name: 'Shreya Mehta', role: 'Data Analyst · Delhi', teaches: ['Tableau', 'SQL'], learns: ['React'], rotate: '-rotate-1', anim: 'animate-float-fast', top: 'top-72', left: 'left-4' },
-]
+
+const HERO_SCORE = scoreMatch(DEMO_A.teaches, DEMO_A.learns, DEMO_B.teaches, DEMO_B.learns)
 
 const STEPS = [
-  { n: '1', title: 'Create your profile', desc: 'List skills you can teach and the ones you want to learn, with your experience level.' },
-  { n: '2', title: 'Get smart matches',   desc: 'Our algorithm surfaces users whose teaching skills perfectly complement yours.' },
-  { n: '3', title: 'Start the chat',      desc: 'Connect instantly via real-time Socket.IO chat. Plan sessions and share resources.' },
-  { n: '4', title: 'Exchange skills',     desc: 'Hold your sessions, track progress, and grow together as a community.' },
-]
-
-const CATS = [
-  { icon: '💻', name: 'Programming & Dev', count: '1,240', tags: ['Python','React','Node.js','SQL'], cls: 'tag-match' },
-  { icon: '🎨', name: 'Design & Creative', count: '890',   tags: ['Figma','Illustration','Branding'], cls: 'tag-teach' },
-  { icon: '📊', name: 'Data & Analytics',  count: '720',   tags: ['Tableau','Power BI','ML'], cls: 'tag-learn' },
-  { icon: '🗣️', name: 'Languages',          count: '2,100', tags: ['Spanish','French','Japanese'], cls: 'tag-teach' },
-  { icon: '🎸', name: 'Music & Arts',       count: '560',   tags: ['Guitar','Piano','Theory'], cls: 'tag-match' },
-  { icon: '📈', name: 'Business',           count: '430',   tags: ['Marketing','SEO','Finance'], cls: 'tag-learn' },
+  { n: '1', title: 'Create your profile', desc: 'List the skills you can teach and the ones you want to learn, with your level.' },
+  { n: '2', title: 'Get matches', desc: 'We rank members whose skills complement yours, in both directions.' },
+  { n: '3', title: 'Send a request', desc: 'Ask to swap. The other person accepts or declines, and you are notified live.' },
+  { n: '4', title: 'Chat and exchange', desc: 'Plan sessions in real-time chat, then rate each other when you are done.' },
 ]
 
 const FEATURES = [
-  { icon: '🔐', title: 'Secure Auth',      desc: 'JWT-based authentication keeps your account protected at all times.' },
-  { icon: '🎯', title: 'Smart Matching',   desc: 'Algorithm finds complementary partners based on your skill profile.' },
-  { icon: '⚡', title: 'Real-time Chat',   desc: 'Socket.IO powers instant messaging so sessions flow naturally.' },
-  { icon: '📱', title: 'Works Everywhere', desc: 'Fully responsive across desktop, tablet, and mobile devices.' },
+  { icon: '🔐', title: 'Secure sign-in', desc: 'Short-lived sessions, hashed passwords and rate-limited login.' },
+  { icon: '🎯', title: 'Skill matching', desc: 'A transparent score based on what each side teaches and wants.' },
+  { icon: '⚡', title: 'Real-time chat', desc: 'Instant messages, typing indicators and unread badges.' },
+  { icon: '📱', title: 'Works on any screen', desc: 'Layouts adapt from phones to desktops.' },
 ]
+
+const fmt = (n) => (typeof n === 'number' ? n.toLocaleString() : '–')
 
 export default function Home() {
   const { user } = useAuth()
+  const stats = useStats()
 
   return (
     <div className="min-h-screen">
-
-      {/* ── HERO ─────────────────────────────────────────────── */}
-      <section className="bg-canvas pt-20 pb-16 px-6">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
-
-          {/* Left */}
+      {/* HERO */}
+      <section className="bg-canvas pt-12 md:pt-20 pb-16 px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           <div className="animate-fade-up">
-            <div className="inline-flex items-center gap-2 bg-sage-pale text-sage-dark text-xs font-semibold px-3.5 py-1.5 rounded-full uppercase tracking-widest mb-7">
-              <span className="w-1.5 h-1.5 rounded-full bg-sage-light animate-pulse-dot" />
-              Live skill exchange network
-            </div>
+            <p className="inline-flex items-center gap-2 bg-sage-pale text-sage-dark text-xs font-semibold px-3.5 py-1.5 rounded-full uppercase tracking-widest mb-7">
+              <span className="w-1.5 h-1.5 rounded-full bg-sage-light animate-pulse-dot" aria-hidden="true" />
+              Skill exchange network
+            </p>
 
-            <h1 className="font-display text-5xl lg:text-6xl leading-[1.07] text-ink mb-6">
-              Trade what you <em className="not-italic text-sage">know</em><br/>
-              for what you <em className="not-italic text-sage">want to learn</em>
+            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl leading-[1.07] text-ink mb-6">
+              Trade what you <em className="not-italic text-sage">know</em>
+              <br className="hidden sm:block" /> for what you <em className="not-italic text-sage">want to learn</em>
             </h1>
 
             <p className="text-ink-3 text-lg leading-relaxed mb-9 max-w-lg">
-              Connect with people who have the skills you need, and share the expertise
-              you already have — no money, just genuine human-to-human knowledge transfer.
+              Connect with people who have the skills you need and share the expertise you already have. No money, just
+              people teaching each other.
             </p>
 
             <div className="flex flex-wrap gap-3 mb-12">
               {user ? (
                 <>
-                  <Link to="/browse"  className="btn btn-dark btn-lg">Browse Skills →</Link>
-                  <Link to="/matches" className="btn btn-outline btn-lg">View My Matches</Link>
+                  <Link to="/browse" className="btn btn-dark btn-lg">Browse skills →</Link>
+                  <Link to="/matches" className="btn btn-outline btn-lg">View my matches</Link>
                 </>
               ) : (
                 <>
-                  <Link to="/register" className="btn btn-dark btn-lg">Start Swapping →</Link>
-                  <Link to="/login"    className="btn btn-outline btn-lg">Sign in</Link>
+                  <Link to="/register" className="btn btn-dark btn-lg">Start swapping →</Link>
+                  <Link to="/login" className="btn btn-outline btn-lg">Sign in</Link>
                 </>
               )}
             </div>
 
-            <div className="flex gap-8 pt-8 border-t border-canvas-3">
-              {[['12k+','Active learners'],['340+','Skills available'],['89%','Match satisfaction']].map(([n,l]) => (
-                <div key={l}>
-                  <div className="font-display text-3xl text-ink leading-none">{n}</div>
-                  <div className="text-xs text-ink-4 mt-1">{l}</div>
-                </div>
-              ))}
-            </div>
+            {/* Real numbers from the API; the block is simply hidden if they can't be loaded. */}
+            {stats && (
+              <dl className="flex flex-wrap gap-x-8 gap-y-4 pt-8 border-t border-canvas-3">
+                {[
+                  ['Members', stats.users],
+                  ['Skills offered', stats.skills],
+                  ['Connections made', stats.connections],
+                ].map(([label, n]) => (
+                  <div key={label}>
+                    <dd className="font-display text-3xl text-ink leading-none">{fmt(n)}</dd>
+                    <dt className="text-xs text-ink-3 mt-1">{label}</dt>
+                  </div>
+                ))}
+              </dl>
+            )}
           </div>
 
-          {/* Right — floating cards */}
-          <div className="relative h-[460px] hidden lg:block">
-            {CARDS.map((c, i) => (
-              <div key={i} className={`absolute ${c.top} ${c.left} ${c.rotate} ${c.anim} ${c.zIndex || ''} w-56 bg-white rounded-2xl border border-canvas-3 shadow-card p-5`}>
-                <div className={`avatar-${c.color} w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold mb-3`}>
+          {/* Illustrative cards (clearly labelled) */}
+          <div className="relative hidden lg:block h-[420px]" aria-hidden="true">
+            {[DEMO_A, DEMO_B].map((c, i) => (
+              <div
+                key={c.name}
+                className={`absolute w-60 bg-white rounded-2xl border border-canvas-3 shadow-card p-5 ${
+                  i === 0 ? 'top-0 left-0 -rotate-3 animate-float-slow' : 'top-40 left-28 rotate-2 animate-float-mid z-10'
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold mb-3 ${c.color}`}>
                   {c.initials}
                 </div>
                 <div className="font-semibold text-sm text-ink">{c.name}</div>
-                <div className="text-[11px] text-ink-4 mb-2.5">{c.role}</div>
+                <div className="text-[11px] text-ink-3 mb-2.5">{c.role}</div>
                 <div className="flex flex-wrap gap-1">
-                  {c.teaches.map(t => <span key={t} className="tag-teach">{t}</span>)}
-                  {c.learns.map(t  => <span key={t} className="tag-learn">{t}</span>)}
+                  {c.teaches.slice(0, 2).map((t) => <span key={t} className="tag-teach">{t}</span>)}
+                  {c.learns.slice(0, 1).map((t) => <span key={t} className="tag-learn">{t}</span>)}
                 </div>
-                {c.match && (
+                {i === 0 && (
                   <div className="mt-2.5 inline-flex items-center gap-1 bg-sage text-white text-[10px] font-semibold px-2.5 py-1 rounded-full">
-                    ✓ {c.match}% match
+                    ✓ {HERO_SCORE}% match
                   </div>
                 )}
               </div>
             ))}
-            {/* swap orb */}
-            <div className="absolute top-[218px] left-[276px] z-20 w-12 h-12 rounded-full bg-ink flex items-center justify-center text-sage-light text-lg font-bold shadow-lift">
-              ⇄
-            </div>
+            <div className="absolute top-[190px] left-[230px] z-20 w-12 h-12 rounded-full bg-ink flex items-center justify-center text-sage-light text-lg font-bold shadow-lift">⇄</div>
+            <div className="absolute bottom-0 left-0"><ExampleBadge>Example profiles</ExampleBadge></div>
           </div>
         </div>
       </section>
 
-      {/* ── FEATURES STRIP ──────────────────────────────────── */}
+      {/* FEATURES */}
       <div className="bg-canvas-2 border-y border-canvas-3">
-        <div className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-2 lg:grid-cols-4 gap-6">
-          {FEATURES.map(f => (
-            <div key={f.title} className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-xl bg-white border border-canvas-3 flex items-center justify-center text-xl shrink-0">
-                {f.icon}
-              </div>
+        <ul className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {FEATURES.map((f) => (
+            <li key={f.title} className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-xl bg-white border border-canvas-3 flex items-center justify-center text-xl shrink-0" aria-hidden="true">{f.icon}</div>
               <div>
-                <h4 className="font-semibold text-sm mb-0.5">{f.title}</h4>
-                <p className="text-xs text-ink-4 leading-relaxed">{f.desc}</p>
+                <h3 className="font-sans font-semibold text-sm mb-0.5">{f.title}</h3>
+                <p className="text-xs text-ink-3 leading-relaxed">{f.desc}</p>
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
 
-      {/* ── HOW IT WORKS ────────────────────────────────────── */}
-      <section className="bg-ink py-24 px-6">
+      {/* HOW IT WORKS */}
+      <section className="bg-ink py-16 md:py-24 px-4 sm:px-6" aria-labelledby="how-title">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="font-display text-4xl text-white mb-3">How SkillSwap works</h2>
-            <p className="text-white/50 max-w-md mx-auto">Four simple steps to start learning and teaching through human skill exchange</p>
+          <div className="text-center mb-12 md:mb-16">
+            <h2 id="how-title" className="font-display text-3xl md:text-4xl text-white mb-3">How SkillSwap works</h2>
+            <p className="text-white/70 max-w-md mx-auto">Four steps from signing up to your first swap</p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {STEPS.map(s => (
-              <div key={s.n}>
-                <div className="w-14 h-14 rounded-full border border-white/10 bg-white/4 flex items-center justify-center font-display text-2xl text-sage-light mb-5">
-                  {s.n}
-                </div>
+          <ol className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {STEPS.map((s) => (
+              <li key={s.n}>
+                <div className="w-14 h-14 rounded-full border border-white/20 flex items-center justify-center font-display text-2xl text-sage-light mb-5" aria-hidden="true">{s.n}</div>
                 <h3 className="font-sans font-semibold text-white mb-2">{s.title}</h3>
-                <p className="text-sm text-white/40 leading-relaxed">{s.desc}</p>
-              </div>
+                <p className="text-sm text-white/70 leading-relaxed">{s.desc}</p>
+              </li>
             ))}
-          </div>
+          </ol>
         </div>
       </section>
 
-      {/* ── CATEGORIES ──────────────────────────────────────── */}
-      <section className="bg-canvas py-24 px-6">
+      {/* CATEGORIES (counts are real, from the API) */}
+      <section className="bg-canvas py-16 md:py-24 px-4 sm:px-6" aria-labelledby="cat-title">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="font-display text-4xl text-ink mb-3">Browse by skill category</h2>
-            <p className="text-ink-4 max-w-md mx-auto">From coding to cooking — find the perfect skill exchange partner</p>
+          <div className="text-center mb-12 md:mb-14">
+            <h2 id="cat-title" className="font-display text-3xl md:text-4xl text-ink mb-3">Browse by skill category</h2>
+            <p className="text-ink-3 max-w-md mx-auto">From coding to cooking, find a swap partner</p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {CATS.map(cat => (
-              <Link
-                key={cat.name}
-                to={`/browse?category=${encodeURIComponent(cat.name)}`}
-                className="card card-hover p-6 flex flex-col gap-2 group"
-              >
-                <div className="text-3xl mb-1">{cat.icon}</div>
-                <h3 className="font-sans font-semibold text-ink group-hover:text-sage transition-colors">{cat.name}</h3>
-                <p className="text-xs text-ink-4">{cat.count} learners</p>
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {cat.tags.map(t => <span key={t} className={cat.cls}>{t}</span>)}
-                </div>
-              </Link>
-            ))}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {CATEGORY_CARDS.map((cat) => {
+              const n = stats?.categories?.[cat.key]
+              return (
+                <Link key={cat.key} to={`/browse?category=${encodeURIComponent(cat.key)}`} className="card card-hover p-6 flex flex-col gap-2 group">
+                  <div className="text-3xl mb-1" aria-hidden="true">{cat.icon}</div>
+                  <h3 className="font-sans font-semibold text-ink group-hover:text-sage transition-colors">{cat.name}</h3>
+                  {typeof n === 'number' && (
+                    <p className="text-xs text-ink-3">{n} {n === 1 ? 'member teaches' : 'members teach'} here</p>
+                  )}
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {cat.tags.map((t) => <span key={t} className={cat.cls}>{t}</span>)}
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         </div>
       </section>
-      
-      <section id = "smartmatching">
-       <SmartMatching/>
-      </section>
-      
-      <section id = "community">
-        <Community />
-      </section>
-      <section id = "chatui">
-        <ChatUI />
-      </section>
-      <section id = "feedback">
-          <Feedback />
-        </section>
 
-      {/* ── CTA ─────────────────────────────────────────────── */}
-      <section className="bg-sage py-28 px-6 text-center">
-        <h2 className="font-display text-5xl text-white mb-4">Ready to start swapping?</h2>
-        <p className="text-white/70 text-lg mb-10">Join 12,000+ learners exchanging skills every day. Free forever.</p>
+      <SmartMatching />
+      <Community />
+      <ChatUI />
+
+      {/* CTA */}
+      <section className="bg-sage py-20 md:py-28 px-4 sm:px-6 text-center">
+        <h2 className="font-display text-3xl md:text-5xl text-white mb-4">Ready to start swapping?</h2>
+        <p className="text-white/90 text-lg mb-10">Create a free profile and see who matches you.</p>
         <div className="flex flex-wrap gap-4 justify-center">
           {user ? (
-            <Link to="/browse" className="btn btn-lg bg-white text-sage font-semibold hover:bg-canvas">Browse Skills →</Link>
+            <Link to="/browse" className="btn btn-lg bg-white text-sage font-semibold hover:bg-canvas">Browse skills →</Link>
           ) : (
             <>
               <Link to="/register" className="btn btn-lg bg-white text-sage font-semibold hover:bg-canvas">Create your profile →</Link>
-              <Link to="/login"    className="btn btn-lg bg-white/10 text-white border border-white/20 hover:bg-white/20">Sign in</Link>
+              <Link to="/login" className="btn btn-lg bg-white/10 text-white border border-white/30 hover:bg-white/20">Sign in</Link>
             </>
           )}
         </div>
       </section>
 
-      {/* ── FOOTER ──────────────────────────────────────────── */}
-      {/* <footer className="bg-ink px-6 py-10">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-6">
-          <div>
-            <div className="font-display text-xl text-white mb-1">Skill<span className="text-sage-light">Swap</span></div>
-            <p className="text-xs text-white/30">Built with React + Vite + Tailwind · Node.js · MongoDB · Socket.IO</p>
-          </div>
-          <div className="flex gap-6">
-            {['/browse','/matches','/chat'].map(p => (
-              <Link key={p} to={p} className="text-sm text-white/40 hover:text-white/70 capitalize transition-colors">
-                {p.slice(1)}
-              </Link>
-            ))}
-          </div>
-          <p className="text-xs text-white/20">© 2026 SkillSwap</p>
-        </div>
-      </footer> */}
-      <section>
-        <Footer/>
-      </section>
+      <Footer />
     </div>
   )
 }

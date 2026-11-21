@@ -1,64 +1,111 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import axios from 'axios'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+import { api, refreshSession, setAccessToken, setAuthLostHandler, subscribeToken } from '../lib/api'
 
 const AuthContext = createContext(null)
-const API = import.meta.env.VITE_API_URL;
-export const api = axios.create({
-  baseURL: API
-})
-api.interceptors.request.use(cfg => {
-  const t = localStorage.getItem('ss_token')
-  if (t) cfg.headers.Authorization = `Bearer ${t}`
-  return cfg
-})
 
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null)
-  const [token, setToken]     = useState(localStorage.getItem('ss_token'))
+  const [user, setUser] = useState(null)
+  const [token, setToken] = useState(null)
   const [loading, setLoading] = useState(true)
+  // Set when the boot-time session check failed for a reason other than "not signed in" (network, 5xx).
+  const [bootError, setBootError] = useState(false)
 
-  const loadUser = useCallback(async () => {
-    if (!token) { setLoading(false); return }
+  useEffect(() => subscribeToken(setToken), [])
+
+  // The server rejected our refresh cookie: the session is really over.
+  useEffect(() => {
+    setAuthLostHandler(() => {
+      setAccessToken(null)
+      setUser(null)
+    })
+    return () => setAuthLostHandler(() => {})
+  }, [])
+
+  const boot = useCallback(async () => {
+    setLoading(true)
+    setBootError(false)
     try {
-      const { data } = await api.get('/api/auth/me')
+      const data = await refreshSession() // restores the session from the httpOnly cookie
       setUser(data.user)
+    } catch (err) {
+      // 401 = simply not signed in. Anything else (network blip, 500) must NOT look like a logout.
+      if (err.response?.status !== 401) setBootError(true)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    boot()
+  }, [boot])
+
+  // Refresh the short-lived access token a minute before it expires, so requests and the socket
+  // never run on an expired token (and the user never notices the 15 minute lifetime).
+  useEffect(() => {
+    if (!token) return undefined
+    let exp
+    try {
+      exp = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp * 1000
     } catch {
-      localStorage.removeItem('ss_token')
-      setToken(null)
-    } finally { setLoading(false) }
+      return undefined
+    }
+    const wait = Math.max(exp - Date.now() - 60 * 1000, 5 * 1000)
+    const t = setTimeout(() => {
+      refreshSession().catch((err) => {
+        if (err.response?.status === 401) {
+          setAccessToken(null)
+          setUser(null)
+        }
+      })
+    }, wait)
+    return () => clearTimeout(t)
   }, [token])
 
-  useEffect(() => { loadUser() }, [loadUser])
-
-  const login = async (email, password) => {
+  // Set the user straight from the login/register response - no redundant /me call.
+  const login = useCallback(async (email, password) => {
     const { data } = await api.post('/api/auth/login', { email, password })
-    localStorage.setItem('ss_token', data.token)
-    setToken(data.token); setUser(data.user)
+    setAccessToken(data.accessToken)
+    setUser(data.user)
     return data
-  }
+  }, [])
 
-  const register = async (form) => {
+  const register = useCallback(async (form) => {
     const { data } = await api.post('/api/auth/register', form)
-    localStorage.setItem('ss_token', data.token)
-    setToken(data.token); setUser(data.user)
+    if (data.accessToken) {
+      setAccessToken(data.accessToken)
+      setUser(data.user)
+    }
     return data
-  }
+  }, [])
 
-  const logout = () => {
-    localStorage.removeItem('ss_token')
-    setToken(null); setUser(null)
-  }
+  const logout = useCallback(async () => {
+    try {
+      await api.post('/api/auth/logout')
+    } catch {
+      /* the cookie is cleared server-side when reachable; local state is cleared regardless */
+    }
+    setAccessToken(null)
+    setUser(null)
+  }, [])
 
-  const updateProfile = async (profileData) => {
+  const logoutAll = useCallback(async () => {
+    await api.post('/api/auth/logout-all')
+    setAccessToken(null)
+    setUser(null)
+  }, [])
+
+  const updateProfile = useCallback(async (profileData) => {
     const { data } = await api.put('/api/auth/profile', profileData)
-    setUser(data.user); return data
-  }
+    setUser(data.user)
+    return data
+  }, [])
 
-  return (
-    <AuthContext.Provider value={{ user, loading, token, login, register, logout, updateProfile }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({ user, token, loading, bootError, retryBoot: boot, login, register, logout, logoutAll, updateProfile }),
+    [user, token, loading, bootError, boot, login, register, logout, logoutAll, updateProfile],
   )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export const useAuth = () => {
@@ -66,3 +113,5 @@ export const useAuth = () => {
   if (!ctx) throw new Error('useAuth must be inside AuthProvider')
   return ctx
 }
+
+export { api }
