@@ -1,13 +1,13 @@
 const mongoose = require('mongoose');
 
-const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(process.env.MONGO_URI);
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
-  } catch (err) {
-    console.error(`❌ MongoDB Error: ${err.message}`);
-    process.exit(1);
-  }
+/**
+ * Connects to MongoDB. Throws on failure so the caller (server.js) decides
+ * what to do - we never call process.exit from library code.
+ */
+const connectDB = async (uri = process.env.MONGO_URI) => {
+  const conn = await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
+  console.log(`MongoDB connected: ${conn.connection.host}`);
+  return conn;
 };
 
 module.exports = connectDB;

@@ -1,0 +1,35 @@
+# Local stack: API + MongoDB (single-node replica set, so transactions work like on Atlas).
+# Usage:  JWT_SECRET=$(openssl rand -hex 32) docker compose up --build
+services:
+  mongo:
+    image: mongo:7
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: >
+        mongosh --quiet --eval
+        "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}).ok }"
+      interval: 5s
+      timeout: 10s
+      retries: 10
+
+  api:
+    build: ./backend
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      # "dev" in the database name satisfies the seed script's safety check.
+      MONGO_URI: mongodb://mongo:27017/skillswap-dev?replicaSet=rs0
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (32+ random characters)}
+      CLIENT_URLS: ${CLIENT_URLS:-http://localhost:5173}
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: "5000"
+    ports:
+      - "5000:5000"
+
+volumes:
+  mongo-data:

@@ -1,47 +1,73 @@
-import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { api } from '../context/AuthContext'
+import { useCallback, useEffect, useState } from 'react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import { api, errorMessage } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useSocket } from '../context/SocketContext'
 import { useToast } from '../context/ToastContext'
 import Avatar from '../components/Avatar'
 import Spinner from '../components/Spinner'
+import SwapButton from '../components/SwapButton'
+import RatingForm from '../components/RatingForm'
+
+const scoreColor = (s) => (s >= 70 ? 'text-sage' : s >= 40 ? 'text-amber' : 'text-ink-3')
 
 export default function UserProfile() {
-  const { id }          = useParams()
-  const { user: me }    = useAuth()
-  const { socket, onlineUsers } = useSocket()
+  const { id } = useParams()
+  const { user: me } = useAuth()
+  const { onlineUsers } = useSocket() || {}
   const { success, error } = useToast()
-  const navigate        = useNavigate()
+  const navigate = useNavigate()
 
-  const [profile,   setProfile]   = useState(null)
-  const [loading,   setLoading]   = useState(true)
-  const [swapping,  setSwapping]  = useState(false)
-  const [swapSent,  setSwapSent]  = useState(false)
-  const [chatting,  setChatting]  = useState(false)
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+  const [swapping, setSwapping] = useState(false)
+  const [chatting, setChatting] = useState(false)
 
+  const load = useCallback(
+    (signal) =>
+      api
+        .get(`/api/users/${id}`, { signal })
+        .then(({ data }) => {
+          setProfile(data.user)
+          setNotFound(false)
+        })
+        .catch((err) => {
+          if (signal?.aborted) return
+          setProfile(null)
+          setNotFound(true)
+          return err
+        })
+        .finally(() => {
+          if (!signal?.aborted) setLoading(false)
+        }),
+    [id],
+  )
+
+  // Reset on every id change so the previous person's profile never lingers while the next one loads.
   useEffect(() => {
-    api.get(`/api/users/${id}`)
-      .then(({ data }) => setProfile(data.user))
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [id])
+    const controller = new AbortController()
+    setLoading(true)
+    setProfile(null)
+    load(controller.signal)
+    return () => controller.abort()
+  }, [load])
 
   const requestSwap = async () => {
-    if (swapSent || swapping) return
+    if (!profile || swapping) return
     setSwapping(true)
     try {
       await api.post(`/api/users/${id}/swap-request`, {
         message: `Hi ${profile.name?.split(' ')[0]}! I'd love to swap skills with you.`,
       })
-      setSwapSent(true)
-      // Real-time notify recipient
-      socket?.emit('swap:request:send', { targetUserId: id })
+      setProfile((p) => ({ ...p, relationship: 'pending_sent' }))
       success('Swap request sent!')
-    } catch (e) {
-      const msg = e.response?.data?.message || 'Could not send request.'
-      if (msg.toLowerCase().includes('already')) setSwapSent(true)
-      error(msg)
+    } catch (err) {
+      const code = err.response?.data?.code
+      if (code === 'already_pending') setProfile((p) => ({ ...p, relationship: 'pending_sent' }))
+      else if (code === 'incoming_pending') setProfile((p) => ({ ...p, relationship: 'pending_received' }))
+      else if (code === 'already_connected') setProfile((p) => ({ ...p, relationship: 'connected' }))
+      error(errorMessage(err, 'Could not send request.'))
     } finally {
       setSwapping(false)
     }
@@ -52,220 +78,162 @@ export default function UserProfile() {
     try {
       const { data } = await api.post('/api/chat/conversations', {
         recipientId: id,
-        teachSkill: profile.skillsToTeach?.[0]?.name,
-        learnSkill: profile.skillsToLearn?.[0]?.name,
+        teachSkill: profile.overlap?.theyCanTeachMe?.[0]?.name || profile.skillsToTeach?.[0]?.name,
+        learnSkill: profile.overlap?.iCanTeachThem?.[0]?.name || profile.skillsToLearn?.[0]?.name,
       })
       navigate(`/chat/${data.conversation._id}`)
-    } catch {
-      error('Could not start conversation.')
+    } catch (err) {
+      error(errorMessage(err, 'Could not start conversation.'))
       setChatting(false)
     }
   }
 
   if (loading) return <div className="flex justify-center py-24"><Spinner /></div>
-  if (!profile) return (
-    <div className="text-center py-24">
-      <h3 className="font-display text-2xl mb-4">User not found</h3>
-      <a href="/browse" className="btn btn-dark">Browse users</a>
-    </div>
-  )
+  if (notFound || !profile) {
+    return (
+      <div className="text-center py-24">
+        <h1 className="font-display text-2xl mb-4">User not found</h1>
+        <Link to="/browse" className="btn btn-dark">Browse members</Link>
+      </div>
+    )
+  }
 
-  const isMe        = me?._id === id
-  const score       = profile.compatibilityScore || 0
-  const isOnline    = onlineUsers?.[id]
-  const scoreColor  = score >= 70 ? 'text-sage' : score >= 40 ? 'text-amber' : 'text-ink-4'
-
-  // Skills overlap for compatibility breakdown
-  const theyCanTeachMe = me?.skillsToLearn?.filter(s =>
-    profile.skillsToTeach?.some(t => t.name.toLowerCase() === s.name.toLowerCase())
-  ) || []
-  const iCanTeachThem = me?.skillsToTeach?.filter(s =>
-    profile.skillsToLearn?.some(l => l.name.toLowerCase() === s.name.toLowerCase())
-  ) || []
+  const isMe = me?._id === profile._id
+  const score = profile.compatibilityScore || 0
+  // Live presence when known, else the value the API returned.
+  const isOnline = onlineUsers && profile._id in onlineUsers ? onlineUsers[profile._id] : profile.isOnline
+  const { theyCanTeachMe = [], iCanTeachThem = [] } = profile.overlap || {}
+  const relationship = profile.relationship
 
   return (
-    <div className="min-h-screen bg-canvas py-10 px-6">
+    <div className="min-h-screen bg-canvas py-10 px-4 sm:px-6">
       <div className="max-w-5xl mx-auto grid md:grid-cols-[1fr_1.1fr] gap-5 animate-fade-up">
-
-        {/* ── LEFT: Main card ───────────────────────────────────────── */}
+        {/* LEFT */}
         <div className="flex flex-col gap-5">
           <div className="card p-6">
-
-            {/* Header */}
             <div className="flex items-start gap-4 mb-5">
               <div className="relative shrink-0">
                 <Avatar user={profile} size="xl" />
-                {isOnline && (
-                  <div className="absolute bottom-1 right-1 w-3.5 h-3.5 rounded-full bg-sage-light border-2 border-white" />
-                )}
+                {isOnline && <span className="absolute bottom-1 right-1 w-3.5 h-3.5 rounded-full bg-sage-light border-2 border-white" aria-hidden="true" />}
               </div>
               <div className="flex-1 min-w-0">
                 <h1 className="font-display text-3xl leading-tight">{profile.name}</h1>
-                {profile.location && (
-                  <p className="text-sm text-ink-4 mt-0.5">📍 {profile.location}</p>
-                )}
+                {profile.location && <p className="text-sm text-ink-3 mt-0.5">{profile.location}</p>}
                 <div className="flex flex-wrap gap-2 mt-3">
                   <span className="bg-violet-pale text-violet text-xs font-medium px-2.5 py-1 rounded-full">
-                    🔁 {profile.totalSwaps || 0} swaps
+                    {profile.connectionsCount || 0} {profile.connectionsCount === 1 ? 'connection' : 'connections'}
                   </span>
-                  {profile.avgRating > 0 && (
+                  {profile.ratingCount > 0 && (
                     <span className="bg-amber-pale text-amber text-xs font-medium px-2.5 py-1 rounded-full">
-                      ⭐ {profile.avgRating}
+                      ★ {profile.ratingAvg} ({profile.ratingCount})
                     </span>
                   )}
-                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                    isOnline ? 'bg-sage-pale text-sage-dark' : 'bg-canvas-2 text-ink-4'
-                  }`}>
-                    {isOnline ? '● Online now' : '○ Offline'}
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${isOnline ? 'bg-sage-pale text-sage-dark' : 'bg-canvas-2 text-ink-3'}`}>
+                    {isOnline ? 'Online now' : 'Offline'}
                   </span>
                 </div>
               </div>
               {score > 0 && !isMe && (
                 <div className="text-center shrink-0">
-                  <div className={`font-display text-4xl leading-none ${scoreColor}`}>{score}%</div>
-                  <div className="text-[10px] text-ink-4 uppercase tracking-wider mt-1">match</div>
+                  <div className={`font-display text-4xl leading-none ${scoreColor(score)}`}>{score}%</div>
+                  <div className="text-[10px] text-ink-3 uppercase tracking-wider mt-1">match</div>
                 </div>
               )}
             </div>
 
-            {/* Bio */}
-            {profile.bio && (
-              <p className="text-sm text-ink-3 leading-relaxed mb-5">{profile.bio}</p>
-            )}
+            {profile.bio && <p className="text-sm text-ink-3 leading-relaxed mb-5">{profile.bio}</p>}
 
-            {/* Action buttons */}
             {!isMe ? (
               <div className="flex gap-3 pt-5 border-t border-canvas-2">
-                <button
-                  onClick={startChat}
-                  disabled={chatting}
-                  className="btn btn-outline flex-1 justify-center"
-                >
-                  {chatting ? <Spinner className="w-4 h-4" /> : '💬 Message'}
+                <button type="button" onClick={startChat} disabled={chatting} className="btn btn-outline flex-1 justify-center">
+                  {chatting ? <Spinner className="w-4 h-4" /> : 'Message'}
                 </button>
-                <button
-                  onClick={requestSwap}
-                  disabled={swapping || swapSent}
-                  className={`btn flex-1 justify-center transition-all ${
-                    swapSent
-                      ? 'bg-sage-pale text-sage-dark cursor-default'
-                      : 'btn-primary'
-                  }`}
-                >
-                  {swapSent
-                    ? '✓ Request sent'
-                    : swapping
-                    ? <Spinner className="w-4 h-4" />
-                    : '🤝 Request Swap'}
-                </button>
+                <SwapButton relationship={relationship} busy={swapping} onRequest={requestSwap} className="flex-1" />
               </div>
             ) : (
-              <a href="/profile" className="btn btn-outline mt-5 self-start">
-                ✏️ Edit your profile
-              </a>
+              <Link to="/profile" className="btn btn-outline mt-5 self-start">Edit your profile</Link>
             )}
           </div>
 
-          {/* Reviews */}
-          {profile.ratings?.length > 0 && (
-            <div className="card p-5">
-              <p className="section-label mb-3">Reviews ({profile.ratings.length})</p>
-              <div className="flex flex-col gap-3">
-                {profile.ratings.slice(0, 4).map((r, i) => (
-                  <div key={i} className="bg-canvas rounded-xl p-3.5">
-                    <div className="flex items-center gap-1 mb-1">
-                      {'⭐'.repeat(r.score)}
-                    </div>
-                    {r.comment && (
-                      <p className="text-xs text-ink-3 italic">"{r.comment}"</p>
-                    )}
-                  </div>
+          {relationship === 'connected' && !isMe && (
+            <RatingForm userId={profile._id} firstName={profile.name?.split(' ')[0]} onRated={() => load()} />
+          )}
+
+          {profile.reviews?.length > 0 && (
+            <section className="card p-5" aria-label="Reviews">
+              <h2 className="section-label mb-3">Reviews ({profile.ratingCount})</h2>
+              <ul className="flex flex-col gap-3">
+                {profile.reviews.slice(0, 5).map((r, i) => (
+                  <li key={i} className="bg-canvas rounded-xl p-3.5">
+                    <p className="text-amber-light" aria-label={`${r.score} out of 5 stars`}>
+                      {'★'.repeat(r.score)}<span className="text-canvas-3">{'★'.repeat(5 - r.score)}</span>
+                    </p>
+                    {r.comment && <p className="text-xs text-ink-3 italic mt-1">“{r.comment}”</p>}
+                    <p className="text-[11px] text-ink-3 mt-1">— {r.from?.name}</p>
+                  </li>
                 ))}
-              </div>
-            </div>
+              </ul>
+            </section>
           )}
         </div>
 
-        {/* ── RIGHT: Skills + compatibility ─────────────────────────── */}
+        {/* RIGHT */}
         <div className="flex flex-col gap-5">
-
-          {/* Skills they teach */}
           {profile.skillsToTeach?.length > 0 && (
-            <div className="card p-5">
-              <p className="section-label mb-3">Skills they teach ✦</p>
-              <div className="flex flex-col gap-2.5">
-                {profile.skillsToTeach.map((s, i) => (
-                  <div key={i} className="flex items-center gap-3">
+            <section className="card p-5" aria-label="Skills they teach">
+              <h2 className="section-label mb-3">Skills they teach</h2>
+              <ul className="flex flex-col gap-2.5">
+                {profile.skillsToTeach.map((s) => (
+                  <li key={s.name} className="flex items-center gap-3">
                     <span className="tag-teach">{s.name}</span>
-                    <span className="text-xs text-ink-4">{s.category}</span>
-                    <span className="text-xs text-ink-4 ml-auto capitalize">{s.level}</span>
-                  </div>
+                    <span className="text-xs text-ink-3">{s.category}</span>
+                    <span className="text-xs text-ink-3 ml-auto capitalize">{s.level}</span>
+                  </li>
                 ))}
-              </div>
-            </div>
+              </ul>
+            </section>
           )}
 
-          {/* Skills they want to learn */}
           {profile.skillsToLearn?.length > 0 && (
-            <div className="card p-5">
-              <p className="section-label mb-3">Skills they want to learn →</p>
-              <div className="flex flex-col gap-2.5">
-                {profile.skillsToLearn.map((s, i) => (
-                  <div key={i} className="flex items-center gap-3">
+            <section className="card p-5" aria-label="Skills they want to learn">
+              <h2 className="section-label mb-3">Skills they want to learn</h2>
+              <ul className="flex flex-col gap-2.5">
+                {profile.skillsToLearn.map((s) => (
+                  <li key={s.name} className="flex items-center gap-3">
                     <span className="tag-learn">{s.name}</span>
-                    <span className="text-xs text-ink-4">{s.category}</span>
-                  </div>
+                    <span className="text-xs text-ink-3">{s.category}</span>
+                    <span className="text-xs text-ink-3 ml-auto capitalize">{s.level}</span>
+                  </li>
                 ))}
-              </div>
-            </div>
+              </ul>
+            </section>
           )}
 
-          {/* Compatibility breakdown */}
+          {/* The overlap is computed by the server - the client no longer re-implements matching. */}
           {score > 0 && !isMe && (theyCanTeachMe.length > 0 || iCanTeachThem.length > 0) && (
-            <div className="card p-5 bg-sage-pale border-sage-pale">
+            <section className="card p-5 bg-sage-pale border-sage-pale" aria-label="Why you match">
               <div className="flex items-center justify-between mb-3">
-                <p className="section-label text-sage-dark">Why you're a {score}% match</p>
-                <div className={`font-display text-2xl ${scoreColor}`}>{score}%</div>
+                <h2 className="section-label text-sage-dark">Why you're a {score}% match</h2>
+                <span className={`font-display text-2xl ${scoreColor(score)}`}>{score}%</span>
               </div>
-
               {theyCanTeachMe.length > 0 && (
                 <div className="mb-3">
-                  <p className="text-xs font-semibold text-sage-dark mb-2">
-                    They can teach you:
-                  </p>
+                  <p className="text-xs font-semibold text-sage-dark mb-2">They can teach you:</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {theyCanTeachMe.map((s, i) => (
-                      <span key={i} className="tag-teach">{s.name}</span>
-                    ))}
+                    {theyCanTeachMe.map((s) => <span key={s.name} className="tag-teach">{s.name}</span>)}
                   </div>
                 </div>
               )}
-
               {iCanTeachThem.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-sage-dark mb-2">
-                    You can teach them:
-                  </p>
+                  <p className="text-xs font-semibold text-sage-dark mb-2">You can teach them:</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {iCanTeachThem.map((s, i) => (
-                      <span key={i} className="tag-learn">{s.name}</span>
-                    ))}
+                    {iCanTeachThem.map((s) => <span key={s.name} className="tag-learn">{s.name}</span>)}
                   </div>
                 </div>
               )}
-
-              {!isMe && (
-                <button
-                  onClick={requestSwap}
-                  disabled={swapping || swapSent}
-                  className={`btn btn-sm w-full justify-center mt-4 ${
-                    swapSent ? 'bg-white/50 text-sage-dark cursor-default' : 'bg-sage text-white hover:bg-sage-dark'
-                  }`}
-                >
-                  {swapSent ? '✓ Request already sent' : '🤝 Start this swap →'}
-                </button>
-              )}
-            </div>
+              <SwapButton relationship={relationship} busy={swapping} onRequest={requestSwap} size="btn-sm" className="w-full mt-4" />
+            </section>
           )}
         </div>
       </div>
